@@ -47,8 +47,7 @@ pipeline {
         stage('Run Laravel Migrations') {
             steps {
                 script {
-                    def projectName = env.JOB_NAME.toLowerCase().replaceAll('[^a-z0-9]', '_')
-                    sh "docker exec ${projectName}_${APP_SERVICE}_1 php artisan migrate --force"
+                    sh "docker compose -p blog_project exec -T app php artisan migrate --force"
                 }
             }
         }
