@@ -21,8 +21,17 @@ pipeline {
 
         stage('Deploy Containers') {
             steps {
-                sh "docker compose -f ${COMPOSE_FILE} down"
-                sh "docker compose -f ${COMPOSE_FILE} up -d"
+                sh '''
+                    echo "Stopping and removing old containers..."
+                    docker compose -f ${COMPOSE_FILE} down --remove-orphans || true
+
+                    echo "Force remove stale containers if still exist..."
+                    docker rm -f $(docker ps -aq --filter "name=laravel_app") || true
+                    docker rm -f $(docker ps -aq --filter "name=laravel_db") || true
+
+                    echo "Starting fresh containers..."
+                    docker compose -f ${COMPOSE_FILE} up -d
+                '''
             }
         }
 
