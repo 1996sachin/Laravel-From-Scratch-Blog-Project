@@ -28,9 +28,10 @@ pipeline {
                     echo "Force remove stale containers if still exist..."
                     docker rm -f $(docker ps -aq --filter "name=laravel_app") || true
                     docker rm -f $(docker ps -aq --filter "name=laravel_db") || true
+                    docker rm -f $(docker ps -aq --filter "name=laravel_nginx") || true
 
                     echo "Starting fresh containers..."
-                    docker compose -f ${COMPOSE_FILE} up -d
+                    docker compose -p ${PROJECT_NAME} -f ${COMPOSE_FILE} up -d
                 '''
             }
         }
