@@ -2,22 +2,23 @@ pipeline {
     agent any
 
     environment {
-        COMPOSE_FILE = 'docker-compose.yml'
-        APP_SERVICE = 'laravel_app'
+        APP_SERVICE = "app"
+        DB_SERVICE  = "db"
+        NGINX_SERVICE = "nginx"
+        PROJECT_NAME = "blog_project"
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('Checkout SCM') {
             steps {
-                git branch: 'main', url: 'https://github.com/1996sachin/Laravel-From-Scratch-Blog-Project.git'
+                git url: 'https://github.com/1996sachin/Laravel-From-Scratch-Blog-Project.git', branch: 'main'
             }
         }
 
         stage('Build Docker Images') {
             steps {
                 script {
-                    def projectName = env.JOB_NAME.toLowerCase().replaceAll('[^a-z0-9]', '_')
-                    sh "docker compose -p ${projectName} -f ${COMPOSE_FILE} build"
+                    sh "docker compose -p ${PROJECT_NAME} -f docker-compose.yml build"
                 }
             }
         }
@@ -25,21 +26,29 @@ pipeline {
         stage('Deploy Containers') {
             steps {
                 script {
-                    def projectName = env.JOB_NAME.toLowerCase().replaceAll('[^a-z0-9]', '_')
-
                     echo "Stopping and removing old containers..."
-                    sh "docker compose -p ${projectName} -f ${COMPOSE_FILE} down --remove-orphans || true"
-
-                    // Safe removal for all services
-                    ['laravel_app', 'laravel_db', 'laravel_nginx'].each { svc ->
-                        def containers = sh(script: "docker ps -aq --filter name=${svc}", returnStdout: true).trim()
-                        if (containers) {
-                            sh "docker rm -f ${containers}"
-                        }
-                    }
-
+                    sh "docker compose -p ${PROJECT_NAME} -f docker-compose.yml down --remove-orphans || true"
+                    
                     echo "Starting fresh containers..."
-                    sh "docker compose -p ${projectName} -f ${COMPOSE_FILE} up -d"
+                    sh "docker compose -p ${PROJECT_NAME} -f docker-compose.yml up -d"
+                }
+            }
+        }
+
+        stage('Set Permissions') {
+            steps {
+                script {
+                    echo "Setting permissions for Laravel storage and cache..."
+                    sh "docker compose -p ${PROJECT_NAME} exec -T ${APP_SERVICE} chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache"
+                }
+            }
+        }
+
+        stage('Install Dependencies') {
+            steps {
+                script {
+                    echo "Installing Composer dependencies..."
+                    sh "docker compose -p ${PROJECT_NAME} exec -T ${APP_SERVICE} composer install --no-interaction --prefer-dist"
                 }
             }
         }
@@ -47,7 +56,8 @@ pipeline {
         stage('Run Laravel Migrations') {
             steps {
                 script {
-                    sh "docker compose -p blog_project exec -T app php artisan migrate --force"
+                    echo "Running Laravel migrations..."
+                    sh "docker compose -p ${PROJECT_NAME} exec -T ${APP_SERVICE} php artisan migrate --force"
                 }
             }
         }
@@ -55,11 +65,10 @@ pipeline {
         stage('Clear Laravel Cache') {
             steps {
                 script {
-                    def projectName = env.JOB_NAME.toLowerCase().replaceAll('[^a-z0-9]', '_')
-                    sh "docker exec ${projectName}_${APP_SERVICE}_1 php artisan config:clear"
-                    sh "docker exec ${projectName}_${APP_SERVICE}_1 php artisan cache:clear"
-                    sh "docker exec ${projectName}_${APP_SERVICE}_1 php artisan route:clear"
-                    sh "docker exec ${projectName}_${APP_SERVICE}_1 php artisan view:clear"
+                    echo "Clearing Laravel cache..."
+                    sh "docker compose -p ${PROJECT_NAME} exec -T ${APP_SERVICE} php artisan config:cache"
+                    sh "docker compose -p ${PROJECT_NAME} exec -T ${APP_SERVICE} php artisan cache:clear"
+                    sh "docker compose -p ${PROJECT_NAME} exec -T ${APP_SERVICE} php artisan route:clear"
                 }
             }
         }
@@ -67,10 +76,9 @@ pipeline {
 
     post {
         success {
-            echo '✅ Deployment successful!'
+            echo "✅ Deployment completed successfully!"
         }
         failure {
-            echo '❌ Deployment failed!'
+            echo "❌ Deployment failed!"
         }
     }
-}
