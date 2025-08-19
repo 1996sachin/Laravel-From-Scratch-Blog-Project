@@ -1,3 +1,4 @@
+
 pipeline {
     agent any
 
@@ -7,13 +8,22 @@ pipeline {
         NGINX_SERVICE = "nginx"
         PROJECT_NAME = "blog_project"
     }
-
-   stage('Clean Workspace') {
-    steps {
-        deleteDir()  // wipes out old workspace
-    }
-}
         stages {
+        stage('Clean Workspace') {
+            steps {
+                deleteDir()
+                        }
+                             }
+        stage('Checkout SCM') {
+            steps {
+                git url: 'https://github.com/1996sachin/Laravel-From-Scratch-Blog-Project.git', branch: 'main'
+            }
+        }
+
+        stage('Build Docker Images') {
+            steps {
+                script {
+                    sh "docker compose -p ${PROJECT_NAM
         stage('Checkout SCM') {
             steps {
                 git url: 'https://github.com/1996sachin/Laravel-From-Scratch-Blog-Project.git', branch: 'main'
