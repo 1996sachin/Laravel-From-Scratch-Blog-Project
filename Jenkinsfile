@@ -8,7 +8,12 @@ pipeline {
         PROJECT_NAME = "blog_project"
     }
 
-    stages {
+   stage('Clean Workspace') {
+    steps {
+        deleteDir()  // wipes out old workspace
+    }
+}
+        stages {
         stage('Checkout SCM') {
             steps {
                 git url: 'https://github.com/1996sachin/Laravel-From-Scratch-Blog-Project.git', branch: 'main'
