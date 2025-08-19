@@ -23,7 +23,7 @@ RUN chown -R www-data:www-data storage bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
 # Optional: install PHP dependencies at build time (can be skipped if handled via Jenkins)
-RUN composer install --no-dev --optimize-autoloader
+#RUN composer install --no-dev --optimize-autoloader
 
 # Generate app key (ignore if already exists)
 RUN php artisan key:generate || true
