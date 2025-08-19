@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         COMPOSE_FILE = 'docker-compose.yml'
-        APP_CONTAINER = 'laravel_app'
+        APP_SERVICE = 'laravel_app'
     }
 
     stages {
@@ -15,39 +15,53 @@ pipeline {
 
         stage('Build Docker Images') {
             steps {
-                sh "docker compose -f ${COMPOSE_FILE} build"
+                script {
+                    def projectName = env.JOB_NAME.toLowerCase().replaceAll('[^a-z0-9]', '_')
+                    sh "docker compose -p ${projectName} -f ${COMPOSE_FILE} build"
+                }
             }
         }
 
         stage('Deploy Containers') {
             steps {
-                sh '''
-                    echo "Stopping and removing old containers..."
-                    docker compose -f ${COMPOSE_FILE} down --remove-orphans || true
+                script {
+                    def projectName = env.JOB_NAME.toLowerCase().replaceAll('[^a-z0-9]', '_')
 
-                    echo "Force remove stale containers if still exist..."
-                    docker rm -f $(docker ps -aq --filter "name=laravel_app") || true
-                    docker rm -f $(docker ps -aq --filter "name=laravel_db") || true
-                    docker rm -f $(docker ps -aq --filter "name=laravel_nginx") || true
+                    echo "Stopping and removing old containers..."
+                    sh "docker compose -p ${projectName} -f ${COMPOSE_FILE} down --remove-orphans || true"
+
+                    // Safe removal for all services
+                    ['laravel_app', 'laravel_db', 'laravel_nginx'].each { svc ->
+                        def containers = sh(script: "docker ps -aq --filter name=${svc}", returnStdout: true).trim()
+                        if (containers) {
+                            sh "docker rm -f ${containers}"
+                        }
+                    }
 
                     echo "Starting fresh containers..."
-                    docker compose -p ${PROJECT_NAME} -f ${COMPOSE_FILE} up -d
-                '''
+                    sh "docker compose -p ${projectName} -f ${COMPOSE_FILE} up -d"
+                }
             }
         }
 
         stage('Run Laravel Migrations') {
             steps {
-                sh "docker exec ${APP_CONTAINER} php artisan migrate --force"
+                script {
+                    def projectName = env.JOB_NAME.toLowerCase().replaceAll('[^a-z0-9]', '_')
+                    sh "docker exec ${projectName}_${APP_SERVICE}_1 php artisan migrate --force"
+                }
             }
         }
 
         stage('Clear Laravel Cache') {
             steps {
-                sh "docker exec ${APP_CONTAINER} php artisan config:clear"
-                sh "docker exec ${APP_CONTAINER} php artisan cache:clear"
-                sh "docker exec ${APP_CONTAINER} php artisan route:clear"
-                sh "docker exec ${APP_CONTAINER} php artisan view:clear"
+                script {
+                    def projectName = env.JOB_NAME.toLowerCase().replaceAll('[^a-z0-9]', '_')
+                    sh "docker exec ${projectName}_${APP_SERVICE}_1 php artisan config:clear"
+                    sh "docker exec ${projectName}_${APP_SERVICE}_1 php artisan cache:clear"
+                    sh "docker exec ${projectName}_${APP_SERVICE}_1 php artisan route:clear"
+                    sh "docker exec ${projectName}_${APP_SERVICE}_1 php artisan view:clear"
+                }
             }
         }
     }
