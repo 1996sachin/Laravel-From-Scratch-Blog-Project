@@ -11,7 +11,8 @@ services:
     networks:
       - laravel_network
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   db:
     image: mysql:8.0
@@ -26,6 +27,11 @@ services:
       - "3307:3306"
     networks:
       - laravel_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   nginx:
     image: nginx:latest
@@ -43,4 +49,3 @@ services:
 networks:
   laravel_network:
     driver: bridge
-
