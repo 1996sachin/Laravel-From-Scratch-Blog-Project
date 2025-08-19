@@ -1,29 +1,20 @@
-
 pipeline {
     agent any
 
     environment {
-        APP_SERVICE = "app"
-        DB_SERVICE  = "db"
-        NGINX_SERVICE = "nginx"
-        PROJECT_NAME = "blog_project"
+        APP_SERVICE    = "app"
+        DB_SERVICE     = "db"
+        NGINX_SERVICE  = "nginx"
+        PROJECT_NAME   = "blog_project"
     }
-        stages {
+
+    stages {
         stage('Clean Workspace') {
             steps {
                 deleteDir()
-                        }
-                             }
-        stage('Checkout SCM') {
-            steps {
-                git url: 'https://github.com/1996sachin/Laravel-From-Scratch-Blog-Project.git', branch: 'main'
             }
         }
 
-        stage('Build Docker Images') {
-            steps {
-                script {
-                    sh "docker compose -p ${PROJECT_NAM
         stage('Checkout SCM') {
             steps {
                 git url: 'https://github.com/1996sachin/Laravel-From-Scratch-Blog-Project.git', branch: 'main'
@@ -43,7 +34,7 @@ pipeline {
                 script {
                     echo "Stopping and removing old containers..."
                     sh "docker compose -p ${PROJECT_NAME} -f docker-compose.yml down --remove-orphans || true"
-                    
+
                     echo "Starting fresh containers..."
                     sh "docker compose -p ${PROJECT_NAME} -f docker-compose.yml up -d"
                 }
